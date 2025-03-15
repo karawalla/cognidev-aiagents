@@ -1,8 +1,8 @@
 import pytest
 from respx import MockRouter
-
+from httpx import Response
 from src.tools.api.clients.rest import RestClient
-from src.tools.api.models.config import Method, Protocol, ToolConfig
+from src.tools.api.models.config import ToolConfig, ToolResponse, Method, Protocol
 
 
 @pytest.fixture
@@ -17,10 +17,114 @@ def rest_config() -> ToolConfig:
     )
 
 
+@pytest.fixture
+def api_config():
+    """Create a sample API configuration."""
+    return {
+        "base_url": "https://api.example.com",
+        "headers": {"Authorization": "Bearer test-token"}
+    }
+
+
+@pytest.fixture
+def mock_response_data():
+    """Create a sample response data."""
+    return {"status": "success"}
+
+
+@pytest.fixture
+def mock_error_response():
+    """Create a sample error response."""
+    return {"message": "Not Found"}
+
+
+@pytest.fixture
+def http_client():
+    """Create a mock HTTP client."""
+    return Response(200)
+
+
+@pytest.mark.asyncio
+class TestRestClient:
+    async def test_successful_get_request(self, http_client, api_config, mock_response_data):
+        """Test successful GET request execution."""
+        # Arrange
+        client = RestClient(
+            base_url=api_config["base_url"],
+            headers=api_config["headers"]
+        )
+        
+        # Mock the response
+        async def mock_get(*args, **kwargs):
+            return Response(200, json=mock_response_data)
+        
+        http_client.get = mock_get
+        client._client = http_client
+
+        # Act
+        response = await client.execute()
+
+        # Assert
+        assert isinstance(response, ToolResponse)
+        assert response.status_code == 200
+        assert response.data == mock_response_data
+
+    async def test_failed_request_with_retry(self, http_client, api_config):
+        """Test request retry mechanism on failure."""
+        # Arrange
+        client = RestClient(
+            base_url=api_config["base_url"],
+            headers=api_config["headers"],
+            max_retries=2
+        )
+
+        # Mock failing response followed by success
+        call_count = 0
+        async def mock_get(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return Response(500, json={"error": "Internal Server Error"})
+            return Response(200, json={"status": "success"})
+
+        http_client.get = mock_get
+        client._client = http_client
+
+        # Act
+        response = await client.execute()
+
+        # Assert
+        assert call_count == 2
+        assert response.status_code == 200
+        assert response.data == {"status": "success"}
+
+    async def test_request_with_error(self, http_client, api_config, mock_error_response):
+        """Test handling of error responses."""
+        # Arrange
+        client = RestClient(
+            base_url=api_config["base_url"],
+            headers=api_config["headers"]
+        )
+
+        # Mock error response
+        async def mock_get(*args, **kwargs):
+            return Response(404, json=mock_error_response)
+
+        http_client.get = mock_get
+        client._client = http_client
+
+        # Act
+        response = await client.execute()
+
+        # Assert
+        assert response.status_code == 404
+        assert response.error == mock_error_response["message"]
+
+
 @pytest.mark.asyncio
 async def test_successful_get_request(
     rest_config: ToolConfig,
-    mock_successful_response: dict,
+    mock_response_data: dict,
     respx_mock: MockRouter
 ) -> None:
     """Test successful GET request with the REST client."""
@@ -29,7 +133,7 @@ async def test_successful_get_request(
         "https://api.example.com/test",
         params={"key": "value"}
     ).mock(
-        return_value=MockRouter.build_response(200, json=mock_successful_response)
+        return_value=MockRouter.build_response(200, json=mock_response_data)
     )
     
     client = RestClient(rest_config)
@@ -37,7 +141,7 @@ async def test_successful_get_request(
     
     assert route.called
     assert response.status == "success"
-    assert response.data["result"] == mock_successful_response
+    assert response.data["result"] == mock_response_data
     assert response.metadata["status_code"] == 200
 
 
@@ -67,7 +171,7 @@ async def test_failed_request(
 @pytest.mark.asyncio
 async def test_retry_mechanism(
     rest_config: ToolConfig,
-    mock_successful_response: dict,
+    mock_response_data: dict,
     respx_mock: MockRouter
 ) -> None:
     """Test retry mechanism on temporary failure."""
@@ -78,7 +182,7 @@ async def test_retry_mechanism(
         side_effect=[
             MockRouter.build_response(500),
             MockRouter.build_response(500),
-            MockRouter.build_response(200, json=mock_successful_response)
+            MockRouter.build_response(200, json=mock_response_data)
         ]
     )
     
@@ -87,13 +191,13 @@ async def test_retry_mechanism(
     
     assert route.call_count == 3
     assert response.status == "success"
-    assert response.data["result"] == mock_successful_response
+    assert response.data["result"] == mock_response_data
 
 
 @pytest.mark.asyncio
 async def test_post_request_with_json(
     rest_config: ToolConfig,
-    mock_successful_response: dict,
+    mock_response_data: dict,
     respx_mock: MockRouter
 ) -> None:
     """Test POST request with JSON payload."""
@@ -102,7 +206,7 @@ async def test_post_request_with_json(
     route = respx_mock.post(
         "https://api.example.com/test"
     ).mock(
-        return_value=MockRouter.build_response(201, json=mock_successful_response)
+        return_value=MockRouter.build_response(201, json=mock_response_data)
     )
     
     client = RestClient(rest_config)
