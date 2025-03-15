@@ -1,49 +1,26 @@
-import asyncio
-from typing import AsyncGenerator, Generator
-
 import pytest
+from typing import AsyncGenerator
+import httpx
 from fastapi.testclient import TestClient
-from httpx import AsyncClient
-
 from src.service.main import app
 
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """Create an instance of the default event loop for each test case."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
+pytest_plugins = [
+    "tests.fixtures.api",
+]
 
 @pytest.fixture
-def test_client() -> Generator:
-    """Create a TestClient instance for synchronous tests."""
-    with TestClient(app) as client:
+def test_client() -> TestClient:
+    """Create a test client for FastAPI application."""
+    return TestClient(app)
+
+@pytest.fixture
+async def http_client() -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Create an async HTTP client for testing."""
+    async with httpx.AsyncClient() as client:
         yield client
 
-
-@pytest.fixture
-async def async_client() -> AsyncGenerator[AsyncClient, None]:
-    """Create an AsyncClient instance for async tests."""
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        yield client
-
-
-@pytest.fixture
-def mock_successful_response() -> dict:
-    """Mock successful API response."""
-    return {
-        "id": "123",
-        "name": "Test Resource",
-        "status": "active"
-    }
-
-
-@pytest.fixture
-def mock_error_response() -> dict:
-    """Mock error API response."""
-    return {
-        "error": "Resource not found",
-        "code": "404"
-    }
+@pytest.fixture(autouse=True)
+def setup_test_env(monkeypatch):
+    """Setup test environment variables."""
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("LOG_LEVEL", "DEBUG")
