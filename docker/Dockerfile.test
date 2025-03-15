@@ -10,11 +10,12 @@ RUN apt-get update && apt-get install -y \
 # Install uv
 RUN pip install uv
 
-# Copy requirements file
+# Copy requirements files
 COPY requirements.txt .
+COPY test-requirements.txt .
 
 # Install dependencies using uv with --system flag
-RUN uv pip install --system -r requirements.txt
+RUN uv pip install --system -r requirements.txt -r test-requirements.txt
 
 # Create directory for test reports
 RUN mkdir -p /app/test-reports
