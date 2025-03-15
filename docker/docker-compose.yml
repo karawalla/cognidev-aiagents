@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../src:/app/src
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - aiagents-network
+
+  test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test
+    volumes:
+      - ../src:/app/src:ro
+      - ../tests:/app/tests:ro
+      - ../test-reports:/app/test-reports:rw
+      - ../pytest.ini:/app/pytest.ini:ro
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=test
+      - PYTHONUNBUFFERED=1
+      - PYTEST_ADDOPTS="--html=/app/test-reports/report.html --self-contained-html --cov=src --cov-report=html:/app/test-reports/coverage -vv --log-cli-level=DEBUG"
+    depends_on:
+      - api
+    networks:
+      - aiagents-network
+
+networks:
+  aiagents-network:
+    driver: bridge

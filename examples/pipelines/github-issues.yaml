@@ -1,0 +1,46 @@
+version: '1.0'
+pipeline:
+  name: github-issues-pipeline
+  description: Fetch GitHub issues and create Jira tickets
+  
+  nodes:
+    - id: fetch-github-issues
+      name: Get Open GitHub Issues
+      tool:
+        type: api
+        config:
+          protocol: rest
+          method: GET
+          url: https://api.github.com/repos/karawalla/cognidev-aiagents/issues
+          headers:
+            Accept: application/vnd.github.v3+json
+          payload:
+            state: open
+            sort: created
+            direction: desc
+          retry:
+            max_attempts: 3
+            delay: 1000
+
+    - id: create-jira-ticket
+      name: Create Jira Ticket
+      tool:
+        type: api
+        config:
+          protocol: rest
+          method: POST
+          url: https://your-domain.atlassian.net/rest/api/3/issue
+          headers:
+            Content-Type: application/json
+            Authorization: Basic ${env.JIRA_TOKEN}
+          payload:
+            fields:
+              project:
+                key: COGNI
+              summary: "${node.fetch-github-issues.title}"
+              description: "${node.fetch-github-issues.body}"
+              issuetype:
+                name: Task
+          retry:
+            max_attempts: 2
+            delay: 2000

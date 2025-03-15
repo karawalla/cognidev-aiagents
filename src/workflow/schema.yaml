@@ -1,0 +1,102 @@
+# Workflow Pipeline Schema Definition
+version: "1.0"
+
+# Node Types
+nodeTypes:
+  - name: api_get
+    kind: tool
+    tool: api
+    config:
+      protocol: rest
+      method: GET
+      retry:
+        max_attempts: 3
+        backoff: exponential
+      timeout: 30s
+
+  - name: api_post
+    kind: tool
+    tool: api
+    config:
+      protocol: rest
+      method: POST
+      retry:
+        max_attempts: 3
+        backoff: exponential
+      timeout: 30s
+
+# Pipeline Definition
+pipeline:
+  name: string
+  description: string
+  version: string
+  nodes:
+    - id: string
+      name: string
+      type: string  # References nodeTypes
+      config:
+        url: string
+        headers:
+          Authorization: string
+          Content-Type: string
+        params:
+          type: object
+        body:
+          type: object
+      inputs:
+        - name: string
+          source: string  # Node ID or pipeline input
+          path: string    # JSONPath for data extraction
+      outputs:
+        - name: string
+          path: string    # JSONPath for data mapping
+      next:
+        - node: string   # Next node ID
+          condition: string  # Optional condition for branching
+
+# Example workflow:
+example:
+  name: user_order_flow
+  description: "User order processing workflow"
+  version: "1.0"
+  nodes:
+    - id: get_user
+      name: "Get User Details"
+      type: api_get
+      config:
+        url: "http://user-service/api/v1/users/{user_id}"
+        headers:
+          Authorization: "Bearer {token}"
+          Content-Type: "application/json"
+      inputs:
+        - name: user_id
+          source: pipeline_input
+          path: $.user_id
+        - name: token
+          source: pipeline_input
+          path: $.token
+      outputs:
+        - name: user_data
+          path: $.data
+      next:
+        - node: create_order
+          condition: $.status == 'active'
+
+    - id: create_order
+      name: "Create Order"
+      type: api_post
+      config:
+        url: "http://order-service/api/v1/orders"
+        headers:
+          Authorization: "Bearer {token}"
+          Content-Type: "application/json"
+      inputs:
+        - name: user_data
+          source: get_user
+          path: $.user_data
+        - name: order_details
+          source: pipeline_input
+          path: $.order
+      outputs:
+        - name: order_id
+          path: $.data.id
