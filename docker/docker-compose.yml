@@ -23,12 +23,14 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.test
     volumes:
-      - ../src:/app/src
-      - ../tests:/app/tests
+      - ../src:/app/src:ro
+      - ../tests:/app/tests:ro
       - ../test-reports:/app/test-reports:rw
+      - ../pytest.ini:/app/pytest.ini:ro
     environment:
       - PYTHONPATH=/app
       - ENVIRONMENT=test
-      - PYTEST_ADDOPTS="--html=/app/test-reports/report.html --self-contained-html --cov=src --cov-report=html:/app/test-reports/coverage"
+      - PYTHONUNBUFFERED=1
+      - PYTEST_ADDOPTS="--html=/app/test-reports/report.html --self-contained-html --cov=src --cov-report=html:/app/test-reports/coverage -vv --log-cli-level=DEBUG"
     depends_on:
       - api

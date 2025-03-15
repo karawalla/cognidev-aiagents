@@ -28,5 +28,5 @@ COPY pytest.ini .
 # Set working directory for tests
 WORKDIR /app
 
-# Run tests with coverage and HTML reports
-CMD ["pytest", "--html=/app/test-reports/report.html", "--self-contained-html", "--cov=src", "--cov-report=html:/app/test-reports/coverage", "-v", "tests/"]
+# Run tests with coverage, HTML reports, and debug output
+CMD ["pytest", "-vv", "--log-cli-level=DEBUG", "--html=/app/test-reports/report.html", "--self-contained-html", "--cov=src", "--cov-report=html:/app/test-reports/coverage", "tests/"]
