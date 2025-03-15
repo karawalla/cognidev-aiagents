@@ -17,3 +17,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test
+    volumes:
+      - ../src:/app/src
+      - ../tests:/app/tests
+      - ../test-reports:/app/test-reports
+    environment:
+      - PYTHONPATH=/app
+      - ENVIRONMENT=test
+    depends_on:
+      - api

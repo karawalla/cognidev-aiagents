@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install uv
+RUN pip install uv
+
+# Copy requirements file
+COPY requirements.txt .
+
+# Install dependencies using uv
+RUN uv pip install -r requirements.txt
+
+# Copy application code and tests
+COPY src/ ./src/
+COPY tests/ ./tests/
+
+# Create directory for test reports
+RUN mkdir -p /app/test-reports
+
+# Run tests with coverage and HTML reports
+CMD ["pytest", "--html=/app/test-reports/report.html", "--self-contained-html", "--cov=src", "--cov-report=html:/app/test-reports/coverage", "-v", "tests/"]
