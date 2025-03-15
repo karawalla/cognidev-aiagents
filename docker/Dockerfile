@@ -8,8 +8,8 @@ RUN pip install uv
 # Copy requirements file
 COPY requirements.txt .
 
-# Install dependencies using uv
-RUN uv pip install -r requirements.txt
+# Install dependencies using uv with --system flag
+RUN uv pip install --system -r requirements.txt
 
 # Copy application code
 COPY src/ ./src/
