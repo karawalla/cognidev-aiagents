@@ -25,9 +25,10 @@ services:
     volumes:
       - ../src:/app/src
       - ../tests:/app/tests
-      - ../test-reports:/app/test-reports
+      - ../test-reports:/app/test-reports:rw
     environment:
       - PYTHONPATH=/app
       - ENVIRONMENT=test
+      - PYTEST_ADDOPTS="--html=/app/test-reports/report.html --self-contained-html --cov=src --cov-report=html:/app/test-reports/coverage"
     depends_on:
       - api
