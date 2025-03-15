@@ -2,6 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv
 RUN pip install uv
 
@@ -11,12 +16,16 @@ COPY requirements.txt .
 # Install dependencies using uv with --system flag
 RUN uv pip install --system -r requirements.txt
 
+# Create directory for test reports
+RUN mkdir -p /app/test-reports
+
 # Copy application code and tests
 COPY src/ ./src/
 COPY tests/ ./tests/
+COPY pytest.ini .
 
-# Create directory for test reports
-RUN mkdir -p /app/test-reports
+# Set working directory for tests
+WORKDIR /app
 
 # Run tests with coverage and HTML reports
 CMD ["pytest", "--html=/app/test-reports/report.html", "--self-contained-html", "--cov=src", "--cov-report=html:/app/test-reports/coverage", "-v", "tests/"]
